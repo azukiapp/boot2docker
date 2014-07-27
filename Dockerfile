@@ -57,6 +57,7 @@ ENV TCZ_DEPS        iptables \
                     xz liblzma \
                     git expat2 libiconv libidn libgpg-error libgcrypt libssh2 \
                     nfs-utils tcp_wrappers portmap rpcbind libtirpc \
+                    fuse \
                     curl ntpclient
 
 # Make the ROOTFS
@@ -112,6 +113,10 @@ RUN for dep in $TCZ_DEPS; do \
         unsquashfs -f -d $ROOTFS /tmp/$dep.tcz && \
         rm -f /tmp/$dep.tcz ;\
     done
+
+# Install bindfs
+ADD bindfs.tcz /tmp/bindfs.tcz
+RUN unsquashfs -f -d $ROOTFS /tmp/bindfs.tcz && rm -f /tmp/bindfs.tcz
 
 ADD rootfs/isolinux /isolinux
 ADD rootfs/make_iso.sh /
