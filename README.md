@@ -14,7 +14,7 @@ https://github.com/boot2docker/boot2docker/releases).
 
 
 ## Features
-* Kernel 3.15.3 with AUFS, Docker v1.1.2 - using libcontainer
+* Kernel 3.16.1 with AUFS, Docker v1.2.0 - using libcontainer
 * Container persistence via disk automount on `/var/lib/docker`
 * SSH keys persistence via disk automount
 
@@ -39,7 +39,7 @@ the [`boot2docker.iso`](
 https://github.com/boot2docker/boot2docker/releases).
 
 ## How to use
-The `boot2docker` managment tool leverages VirtualBox's `VBoxManage` to
+The `boot2docker` management tool leverages VirtualBox's `VBoxManage` to
 initialise, start, stop and delete the VM right from the command line.
 
 #### Initialize
@@ -59,7 +59,7 @@ $ boot2docker download
 $ boot2docker up
 ```
 
-If your Boot2Docker virtual machine was created prior to 0.11.1-pre1, its best to
+If your Boot2Docker virtual machine was created prior to 0.11.1-pre1, it's best to
 delete -  `boot2docker delete` and then `boot2docker init` to create a new VM.
 
 The main changes are to add a `/var/lib/boot2docker/userdata.tar` file that is
@@ -70,6 +70,12 @@ un-tarred into the `/home/docker` directory on boot. This file contains a
 ## More information
 
 See [Frequently asked questions](doc/FAQ.md) for more details.
+
+#### Boot script log
+
+The bootup script output is logged to `/boot.log`, so you can see (and potentially debug)
+what happens. Note that this is not persistent between boots because we're logging
+from before the persistence partition is mounted (and it may not exist at all).
 
 #### Container Port redirection 
 

@@ -17,8 +17,8 @@ RUN apt-get update && apt-get -y install  unzip \
                         automake \
                         pkg-config
 
-ENV KERNEL_VERSION  3.15.3
-ENV AUFS_BRANCH     aufs3.15
+ENV KERNEL_VERSION  3.16.1
+ENV AUFS_BRANCH     aufs3.16
 
 # Fetch the kernel sources
 RUN curl --retry 10 https://www.kernel.org/pub/linux/kernel/v3.x/linux-$KERNEL_VERSION.tar.xz | tar -C / -xJ && \
@@ -28,12 +28,12 @@ RUN curl --retry 10 https://www.kernel.org/pub/linux/kernel/v3.x/linux-$KERNEL_V
 RUN git clone -b $AUFS_BRANCH --depth 1 git://git.code.sf.net/p/aufs/aufs3-standalone && \
     cd aufs3-standalone && \
     cd /linux-kernel && \
-    for patch in aufs3-kbuild aufs3-base aufs3-mmap aufs3-standalone; do \
-        patch -p1 < /aufs3-standalone/$patch.patch; \
-    done && \
     cp -r /aufs3-standalone/Documentation /linux-kernel && \
     cp -r /aufs3-standalone/fs /linux-kernel && \
-    cp -r /aufs3-standalone/include/uapi/linux/aufs_type.h /linux-kernel/include/uapi/linux/
+    cp -r /aufs3-standalone/include/uapi/linux/aufs_type.h /linux-kernel/include/uapi/linux/ &&\
+    for patch in aufs3-kbuild aufs3-base aufs3-mmap aufs3-standalone aufs3-loopback; do \
+        patch -p1 < /aufs3-standalone/$patch.patch; \
+    done
 
 COPY kernel_config /linux-kernel/.config
 
@@ -125,6 +125,10 @@ RUN curl -L -o $ROOTFS/usr/local/bin/docker https://get.docker.io/builds/Linux/x
     chmod +x $ROOTFS/usr/local/bin/docker && \
     { $ROOTFS/usr/local/bin/docker version || true; }
 
+# get generate_cert
+RUN curl -L -o $ROOTFS/usr/local/bin/generate_cert https://github.com/SvenDowideit/generate_cert/releases/download/0.1/generate_cert-0.1-linux-386/ && \
+    chmod +x $ROOTFS/usr/local/bin/generate_cert
+
 # Get the git versioning info
 COPY .git /git/.git
 RUN cd /git && \
@@ -137,6 +141,30 @@ COPY rootfs/isolinux /isolinux
 
 # Copy our custom rootfs
 COPY rootfs/rootfs $ROOTFS
+
+# These steps can only be run once, so can't be in make_iso.sh (which can be run in chained Dockerfiles)
+# see https://github.com/boot2docker/boot2docker/blob/master/doc/BUILD.md
+RUN    \
+# Make sure init scripts are executable && \
+	find $ROOTFS/etc/rc.d/ $ROOTFS/usr/local/etc/init.d/ -exec chmod +x '{}' ';' && \
+# Download Tiny Core Linux rootfs  && \
+	( cd $ROOTFS && zcat /tcl_rootfs.gz | cpio -f -i -H newc -d --no-absolute-filenames ) && \
+# Change MOTD && \
+	mv $ROOTFS/usr/local/etc/motd $ROOTFS/etc/motd && \
+# Make sure we have the correct bootsync && \
+	mv $ROOTFS/boot*.sh $ROOTFS/opt/ && \
+	chmod +x $ROOTFS/opt/*.sh && \
+# Make sure we have the correct shutdown && \
+	mv $ROOTFS/shutdown.sh $ROOTFS/opt/shutdown.sh && \
+	chmod +x $ROOTFS/opt/shutdown.sh && \
+# Add serial console && \
+	echo "#!/bin/sh" > $ROOTFS/usr/local/bin/autologin && \
+	echo "/bin/login -f docker" >> $ROOTFS/usr/local/bin/autologin && \
+	chmod 755 $ROOTFS/usr/local/bin/autologin && \
+	echo 'ttyS0:2345:respawn:/sbin/getty -l /usr/local/bin/autologin 9600 ttyS0 vt100' >> $ROOTFS/etc/inittab && \
+# fix su - && \
+	echo root > $ROOTFS/etc/sysconfig/superuser
+
 
 COPY rootfs/make_iso.sh /
 RUN /make_iso.sh
